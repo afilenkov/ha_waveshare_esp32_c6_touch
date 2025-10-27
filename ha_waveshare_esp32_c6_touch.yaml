@@ -1,0 +1,260 @@
+substitutions:
+  device_internal_name: waveshare_esp32_c6_touch
+  device_friendly_name: ESP32-C6-Touch
+  font: gfonts://Roboto
+  mdi: fonts/materialdesignicons-webfont.ttf 
+  characters: " !#%'()+,-./0123456789:;<>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz{|}°²³µ$"
+
+esphome:
+  name: ${device_internal_name}
+  friendly_name: ${device_friendly_name}
+  on_boot:
+    then:
+      - switch.turn_on: screen_switch
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  flash_size: 8MB
+  framework:
+    type: esp-idf
+    #sdkconfig_options:
+      #CONFIG_ESPTOOLPY_FLASHSIZE_8MB: y
+
+################################################################################
+# Enable logging
+################################################################################
+logger:
+  logs:
+    component: ERROR
+
+# Enable Home Assistant API
+api:
+  encryption:
+    key: !secret api_encryption_key2
+  on_client_connected:
+    - if:
+        condition:
+          - lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.show: ha_connected_title
+          
+  on_client_disconnected:
+    - if:
+        condition:
+          lambda: 'return (0 == client_info.find("Home Assistant "));'
+        then:
+          - lvgl.widget.hide: ha_connected_title
+
+################################################################################
+# OTA
+################################################################################
+ota:
+  platform: esphome
+  password: !secret web_server_password
+
+################################################################################
+# WiFi
+################################################################################
+wifi:
+  networks:
+    - ssid: !secret wifi_ssid
+      password: !secret wifi_password
+  on_connect:
+    - lvgl.label.update:
+        id: wifi_icon
+        text: "\U000F05A9"
+  on_disconnect:
+    - lvgl.label.update:
+        id: wifi_icon
+        text: "\U000F16C5"
+
+################################################################################
+# SPI
+################################################################################
+
+spi:
+  clk_pin: GPIO1
+  mosi_pin: GPIO2
+
+################################################################################
+# I2C for touchscreen
+################################################################################
+i2c:
+  sda: GPIO18
+  scl: GPIO19
+  frequency: 400kHz
+  scan: false
+  id: bus_a
+################################################################################
+# DISPLAY
+################################################################################
+
+display:
+  - platform: ili9xxx
+    model: ST7789V
+    dc_pin: GPIO15
+    cs_pin: GPIO14
+    reset_pin: GPIO22
+    dimensions:
+      width: 172
+      height: 320
+      offset_height: 0
+      offset_width: 34
+    rotation: 270
+    invert_colors: false
+    data_rate: 40MHz
+    color_order: bgr
+    update_interval: 1s
+
+# Screen ON/OFF Switch
+switch:
+  - platform: template
+    name: "Screen ON/OFF"
+    id: screen_switch
+    turn_on_action:
+      - output.turn_on: lcd_backlight
+    turn_off_action:
+      - output.turn_off: lcd_backlight
+    optimistic: true
+
+output:
+  - platform: gpio
+    id: lcd_backlight
+    pin: GPIO23
+    inverted: false
+
+# External Components
+external_components:
+  - source: github://widget/esphome-components
+    components: [ axs5106 ]
+    refresh: 0s
+
+touchscreen:
+  platform: axs5106
+  id: my_touchscreen
+  interrupt_pin: 21
+  reset_pin: 20
+  on_touch:
+      - lambda: |-
+          ESP_LOGI("Touch", "Touch detected at x=%d, y=%d", touch.x, touch.y);
+
+################################################################################
+# Colors
+################################################################################
+
+color:
+  - id: my_dark_blue
+    red: 10%
+    green: 10%
+    blue: 44%
+  - id: my_black
+    red: 0%
+    green: 0%
+    blue: 0%
+  - id: not_active_text
+    hex: 444D52
+  - id: active_value_text_color
+    hex: 87DB46
+  - id: white_text_color
+    hex: E5E5E5
+
+################################################################################
+# Fonts
+################################################################################
+
+font:
+  - file: "$font"
+    id: title_font
+    size: 48
+    bpp: 4
+    glyphs: ${characters}
+    extras:
+      - file: '$mdi'
+        glyphs: [
+          "\U000F05A9", # mdi:wifi
+          "\U000F16C5", # mdi:wifi-remove
+          "\U000F001B", # mdi:air-conditioner
+          "\U000F0F92", # mdi:water-boiler
+          "\U000F1099", # mdi:air-humidifier
+          "\U000F0D44", # mdi:air-purifier
+          "\U000F1A73", # mdi:solar-power-variant
+          "\U000F192C"  # mdi:transmission-tower-export
+          ]  
+
+
+################################################################################
+# LVGL
+################################################################################
+lvgl:  
+  style_definitions:
+    - id: title_bar
+      text_font: title_font
+      text_color: 0xD5D5D5
+      bg_color: my_black #0
+      bg_opa: 95% #TRANSP
+      border_width: 0
+      border_opa: TRANSP
+      radius: 0
+      pad_all: 0
+      shadow_opa: TRANSP
+      width: 100%
+
+  pages:
+    - id: main_page
+      bg_color: my_black
+      widgets:
+
+        - obj:
+            x: 0
+            y: 0
+            width: 172
+            height: 320
+            styles : title_bar
+            widgets:
+              - obj:
+                  width: 150
+                  height: 100%
+                  styles : title_bar
+                  align: TOP_LEFT
+                  layout:
+                    type: FLEX
+                    flex_flow: ROW
+                    flex_align_main: START
+                  widgets:                  
+                    - label:
+                        text: "AM 00:00"
+                        id: title_time
+                        align: BOTTOM_LEFT
+                        text_align: left
+              - label:
+                  text: "2000-00-00(SUN)"
+                  id: title_date
+                  align: TOP_MID
+                  x: 0
+                  y: 2
+                  text_align: CENTER
+              - obj:
+                  width: 320
+                  height: 100%
+                  styles : title_bar
+                  align: TOP_RIGHT
+                  layout:
+                    type: FLEX
+                    flex_flow: ROW
+                    flex_align_main: END
+                  widgets:
+                    - label:
+                        text: "\U000F192C 0 W"
+                        id: energy_meter_power_title
+                        align: BOTTOM_RIGHT 
+                        text_align: right                    
+                    - label:
+                        text: "HA"
+                        id: ha_connected_title
+                        hidden: true
+                        text_align: RIGHT
+                    - label:
+                        text: "\U000F16C5"
+                        id: wifi_icon
+                        align: BOTTOM_RIGHT
+                        text_align: right
