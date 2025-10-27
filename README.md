@@ -1,0 +1,1 @@
+# ha_waveshare_esp32_c6_touch
