@@ -1,3 +1,8 @@
+################################################################################
+# https://www.waveshare.com/wiki/ESP32-C6-Touch-LCD-1.47
+# https://www.waveshare.com/product/arduino/boards-kits/esp32-c6/esp32-c6-touch-lcd-1.47.htm
+################################################################################
+
 substitutions:
   device_internal_name: waveshare_esp32_c6_touch
   device_friendly_name: ESP32-C6-Touch
@@ -12,14 +17,22 @@ esphome:
   on_boot:
     then:
       - switch.turn_on: screen_switch
+
 esp32:
   board: esp32-c6-devkitc-1
   variant: esp32c6
   flash_size: 8MB
   framework:
     type: esp-idf
-    #sdkconfig_options:
-      #CONFIG_ESPTOOLPY_FLASHSIZE_8MB: y
+
+################################################################################
+# External Components
+################################################################################
+external_components:
+  - source: github://widget/esphome-components
+    components: [ axs5106 ]
+    refresh: 0s
+
 
 ################################################################################
 # Globals
@@ -135,12 +148,6 @@ output:
     id: lcd_backlight
     pin: GPIO23
     inverted: false
-
-# External Components
-external_components:
-  - source: github://widget/esphome-components
-    components: [ axs5106 ]
-    refresh: 0s
 
 ################################################################################
 # touchscreen
@@ -283,7 +290,6 @@ sensor:
     id: house_battery_power
     entity_id: sensor.luxpower_lxp_battery_power
     on_value:
-      - script.execute: battery_update
       - lvgl.label.update:
           id: house_battery_power_text2
           text:
@@ -294,12 +300,22 @@ sensor:
     id: luxpower_lxp_battery_state_of_charge
     entity_id: sensor.luxpower_lxp_battery_state_of_charge
     on_value:
+      - script.execute: battery_update
       - lvgl.label.update:
           id: luxpower_lxp_battery_state_of_charge_text
           text:
-            format: "%.0fW"
+            format: "%.0f%%"
             args: [ 'x' ]  
 
+  - platform: homeassistant
+    id: yearly_pv_energy
+    entity_id: sensor.yearly_pv_energy
+    on_value:
+      then:
+        - sensor.template.publish:
+            id: yearly_pv_energy_cost
+            state: !lambda |-
+              return x*0.171822;  
 
   - platform: template
     id: yearly_pv_energy_cost
@@ -745,7 +761,7 @@ lvgl:
                     text_font: roboto_80
                     text_color: active_value_text_color
                  - label:
-                    x: 60
+                    x: 65
                     y: 55
                     align: TOP_LEFT
                     text_align: CENTER
