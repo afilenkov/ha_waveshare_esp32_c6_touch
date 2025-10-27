@@ -22,6 +22,15 @@ esp32:
       #CONFIG_ESPTOOLPY_FLASHSIZE_8MB: y
 
 ################################################################################
+# Globals
+################################################################################
+globals: 
+  - id: screen_index
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+################################################################################
 # Enable logging
 ################################################################################
 logger:
@@ -145,6 +154,7 @@ touchscreen:
   on_touch:
       - lambda: |-
           ESP_LOGI("Touch", "Touch detected at x=%d, y=%d", touch.x, touch.y);
+      - script.execute: next_screen
 
 ################################################################################
 # time
@@ -197,6 +207,46 @@ script:
       #      snprintf(date_buf, sizeof(date_buf), "%04d-%02d-%02d (%s)", now.year, now.month, now.day_of_month, weekdays[now.day_of_week - 1]);
       #      return date_buf;
 
+  - id: next_screen
+    then:
+      - lambda: |-
+          id(screen_index) +=1;
+          if (id(screen_index) > 1)
+          {
+            id(screen_index) =0;
+          };
+
+      - if:
+          condition:
+            - lambda: 'return (0==id(screen_index));'
+          then:
+            - lvgl.widget.hide: battery_card2
+            - lvgl.widget.show: import_card2
+
+      - if:
+          condition:
+            - lambda: 'return (1==id(screen_index));'
+          then:
+            - lvgl.widget.hide: import_card2
+            - lvgl.widget.show: battery_card2
+
+  - id: battery_update
+    then:
+      - lvgl.label.update:
+          id: house_battery_power_text_icon1
+          text: !lambda |-
+            auto battery_state = id(luxpower_lxp_battery_state_of_charge).state;
+            if (battery_state<10) { return "\U000F007A"; } else
+            if (battery_state<20) { return "\U000F007B"; } else
+            if (battery_state<30) { return "\U000F007C"; } else
+            if (battery_state<40) { return "\U000F007D"; } else
+            if (battery_state<50) { return "\U000F007E"; } else
+            if (battery_state<60) { return "\U000F007F"; } else
+            if (battery_state<70) { return "\U000F0080"; } else
+            if (battery_state<80) { return "\U000F0081"; } else
+            if (battery_state<90) { return "\U000F0082"; } else 
+            { return "\U000F0079"; };
+
 ################################################################################
 # Float number sensors
 # NOTE: text output sensors are below this section
@@ -228,6 +278,38 @@ sensor:
           text:
             format: "%.2fKWh"
             args: [ 'x' ]
+
+  - platform: homeassistant
+    id: house_battery_power
+    entity_id: sensor.luxpower_lxp_battery_power
+    on_value:
+      - script.execute: battery_update
+      - lvgl.label.update:
+          id: house_battery_power_text2
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]  
+
+  - platform: homeassistant
+    id: luxpower_lxp_battery_state_of_charge
+    entity_id: sensor.luxpower_lxp_battery_state_of_charge
+    on_value:
+      - lvgl.label.update:
+          id: luxpower_lxp_battery_state_of_charge_text
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]  
+
+
+  - platform: template
+    id: yearly_pv_energy_cost
+    on_value:
+      - lvgl.label.update:
+          id: yearly_pv_cost2
+          text:
+            format: "$%.2f"
+            args: [ 'x' ]
+
 ################################################################################
 # Colors
 ################################################################################
@@ -621,6 +703,72 @@ lvgl:
                     text_align: RIGHT
                     text: "---KWh"
                     id: daily_luxpower_lxp_pv_power_text2
+                    text_font: regular_40
+                    #text_color: not_active_text    
+                    text_color: white_text_color
+
+#battery
+            - button:
+                x: 0
+                y: 0
+                width: 320
+                height: 142
+                styles: card_new
+                id: battery_card2
+                hidden: true
+                pad_all: 10
+                widgets:
+                 - label:
+                    x: 0
+                    y: 0
+                    align: TOP_LEFT
+                    text_align: LEFT
+                    text: "Battery"
+                    text_font: regular_25
+                    text_color: white_text_color
+                 - label:
+                    x: 0
+                    y: -9
+                    align: TOP_RIGHT
+                    text_align: RIGHT
+                    text: "----W"
+                    id: house_battery_power_text2
+                    text_font: regular_50
+                    text_color: active_value_text_color
+                 - label:
+                    x: 0
+                    y: 37
+                    align: TOP_LEFT
+                    text_align: CENTER
+                    text: "\U000F0091" # battery-unknown
+                    id: house_battery_power_text_icon1
+                    text_font: roboto_80
+                    text_color: active_value_text_color
+                 - label:
+                    x: 60
+                    y: 55
+                    align: TOP_LEFT
+                    text_align: CENTER
+                    text: "---"
+                    id: luxpower_lxp_battery_state_of_charge_text
+                    text_font: regular_40
+                    text_color: active_value_text_color
+                 - label:
+                    x: 0
+                    y: 50
+                    align: TOP_RIGHT
+                    text_align: RIGHT
+                    text: "this year"
+                    text_font: regular_25
+                    #text_color: not_active_text
+                    text_color: white_text_color
+                 - label:
+                    x: 0
+                    y: 80
+                    align: TOP_RIGHT
+                    text_align: RIGHT
+                    text: "$---"
+                    id: yearly_pv_cost2
                     text_font: regular_40
                     #text_color: not_active_text    
                     text_color: white_text_color
