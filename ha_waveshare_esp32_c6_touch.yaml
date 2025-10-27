@@ -4,6 +4,7 @@ substitutions:
   font: gfonts://Roboto
   mdi: fonts/materialdesignicons-webfont.ttf 
   characters: " !#%'()+,-./0123456789:;<>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz{|}°²³µ$"
+  device_sampling_time: 30s
 
 esphome:
   name: ${device_internal_name}
@@ -195,6 +196,38 @@ script:
       #      const char* weekdays[] = {"SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"};
       #      snprintf(date_buf, sizeof(date_buf), "%04d-%02d-%02d (%s)", now.year, now.month, now.day_of_month, weekdays[now.day_of_week - 1]);
       #      return date_buf;
+
+################################################################################
+# Float number sensors
+# NOTE: text output sensors are below this section
+################################################################################
+sensor:
+  # WiFi
+  - platform: wifi_signal
+    name: "WiFi Signal Sensor"
+    id: ${device_internal_name}_wifi_signal_sensor
+    update_interval: ${device_sampling_time}
+
+  - platform: homeassistant
+    id: luxpower_lxp_pv_power
+    entity_id: sensor.luxpower_lxp_pv_power
+    on_value:
+      - lvgl.label.update:
+          id: luxpower_lxp_pv_power_text3
+          text:
+            format: "%.0fW"
+            args: [ 'x' ]  
+
+  ## total solar power
+  - platform: homeassistant
+    id: total_solar_power_w
+    entity_id: sensor.daily_pv_energy
+    on_value:
+      - lvgl.label.update:
+          id: daily_luxpower_lxp_pv_power_text2
+          text:
+            format: "%.2fKWh"
+            args: [ 'x' ]
 ################################################################################
 # Colors
 ################################################################################
@@ -280,6 +313,45 @@ font:
   - file: "$font"
     id: regular_50
     size: 50
+    bpp: 4
+    glyphs: ${characters}
+    extras:
+      - file: '$mdi'
+        glyphs: [
+          "\U000F1A79",  # mdi:sun-snowflake-variant
+          "\U000F0717",  # mdi:snowflake
+          "\U000F0238",  # mdi:fire
+          "\U000F058E",  # mdi:water-percent
+          "\U000F0210",  # mdi:fan
+          "\U000F171D",  # mdi:fan-auto
+          "\U000F1474",  # mdi:fan-speed-3
+          "\U000F1473",  # mdi:fan-speed-2
+          "\U000F1472",  # mdi:fan-speed-1
+          "\U000F0425",   # mdi:power
+          "\U000F1A78", # sun-clock-outline
+          "\U000F19B2", # arrow-up-thin
+          "\U000F19B3", # arrow-down-thin
+          "\U000F0594", # clear-night
+          "\U000F0590", # cloudy
+          "\U000F0F2F", # exceptional
+          "\U000F0591", # fog
+          "\U000F0592", # hail
+          "\U000F0593", # lightning
+          "\U000F067E", # lightning-rainy
+          "\U000F0595", # partlycloudy
+          "\U000F0596", # pouring
+          "\U000F0597", # rainy
+          "\U000F0598", # snowy
+          "\U000F067F", # snowy-rainy
+          "\U000F0599", # sunny
+          "\U000F059D", # windy
+          "\U000F059E", # windy-variant
+          "\U000F14E4", # sunny-off
+          ]   
+
+  - file: "$font"
+    id: regular_40
+    size: 40
     bpp: 4
     glyphs: ${characters}
     extras:
@@ -434,7 +506,7 @@ lvgl:
       widgets:
 
         - obj:
-            x: 2
+            x: 20
             y: 0
             width: 320
             height: 30
@@ -464,7 +536,7 @@ lvgl:
               #    y: 2
               #    text_align: CENTER
               - obj:
-                  x: -5
+                  x: -25
                   width: 150
                   height: 100%
                   styles : title_bar
@@ -534,7 +606,7 @@ lvgl:
                     text_color: active_value_text_color
                  - label:
                     x: 0
-                    y: 60
+                    y: 50
                     align: TOP_RIGHT
                     text_align: RIGHT
                     text: "today"
@@ -544,12 +616,12 @@ lvgl:
                     text_color: white_text_color
                  - label:
                     x: 0
-                    y: 90
+                    y: 80
                     align: TOP_RIGHT
                     text_align: RIGHT
                     text: "---KWh"
                     id: daily_luxpower_lxp_pv_power_text2
-                    text_font: regular_25
+                    text_font: regular_40
                     #text_color: not_active_text    
                     text_color: white_text_color
                         
