@@ -335,6 +335,10 @@ sensor:
             args: [ 'x' ]  
 
   - platform: homeassistant
+    id: pv_forecast_charge_tomorrow
+    entity_id: sensor.pv_forecast_charge_tomorrow
+
+  - platform: homeassistant
     id: yearly_pv_energy
     entity_id: sensor.yearly_pv_energy
     on_value:
